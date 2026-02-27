@@ -3,6 +3,7 @@ import time
 
 from geotransformer.engine import SingleTester
 from geotransformer.utils.common import get_log_string
+from geotransformer.utils.torch import get_device
 
 from dataset import test_data_loader
 from config import make_cfg
@@ -25,11 +26,11 @@ class Tester(SingleTester):
         self.register_loader(data_loader)
 
         # model
-        model = create_model(cfg).cuda()
+        model = create_model(cfg).to(get_device())
         self.register_model(model)
 
         # evaluator
-        self.evaluator = Evaluator(cfg).cuda()
+        self.evaluator = Evaluator(cfg).to(get_device())
 
     def test_step(self, iteration, data_dict):
         output_dict = self.model(data_dict)

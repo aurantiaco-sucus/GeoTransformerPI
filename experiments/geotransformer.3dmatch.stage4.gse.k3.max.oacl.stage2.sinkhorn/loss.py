@@ -5,6 +5,7 @@ from geotransformer.modules.loss import WeightedCircleLoss
 from geotransformer.modules.ops.transformation import apply_transform
 from geotransformer.modules.registration.metrics import isotropic_transform_error
 from geotransformer.modules.ops.pairwise_distance import pairwise_distance
+from geotransformer.utils.torch import to_device, get_device
 
 
 class CoarseMatchingLoss(nn.Module):
@@ -109,7 +110,7 @@ class Evaluator(nn.Module):
         gt_node_corr_indices = gt_node_corr_indices[masks]
         gt_ref_node_corr_indices = gt_node_corr_indices[:, 0]
         gt_src_node_corr_indices = gt_node_corr_indices[:, 1]
-        gt_node_corr_map = torch.zeros(ref_length_c, src_length_c).cuda()
+        gt_node_corr_map = torch.zeros(ref_length_c, src_length_c, device=get_device())
         gt_node_corr_map[gt_ref_node_corr_indices, gt_src_node_corr_indices] = 1.0
 
         ref_node_corr_indices = output_dict['ref_node_corr_indices']

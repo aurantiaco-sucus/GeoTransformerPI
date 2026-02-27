@@ -5,8 +5,9 @@ import glob
 import os.path as osp
 import time
 
-import numpy as np
 import torch
+import numpy as np
+from geotransformer.utils.torch import to_device, get_device
 
 from config import make_cfg
 from geotransformer.engine import Logger
@@ -131,9 +132,9 @@ def eval_one_epoch(args, cfg, logger):
             )
         elif args.method == 'svd':
             with torch.no_grad():
-                ref_corr_points = torch.from_numpy(ref_corr_points).cuda()
-                src_corr_points = torch.from_numpy(src_corr_points).cuda()
-                corr_scores = torch.from_numpy(corr_scores).cuda()
+                ref_corr_points = to_device(torch.from_numpy(ref_corr_points))
+                src_corr_points = to_device(torch.from_numpy(src_corr_points))
+                corr_scores = to_device(torch.from_numpy(corr_scores))
                 est_transform = weighted_procrustes(
                     src_corr_points, ref_corr_points, corr_scores, return_transform=True
                 )

@@ -1,0 +1,29 @@
+[project]
+name = "geotransformerpi"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.14"
+dependencies = [
+    "coloredlogs>=15.0.1",
+    "easydict>=1.13",
+    "einops>=0.8.2",
+    "ipdb>=0.13.13",
+    "matplotlib>=3.10.8",
+    "nibabel>=5.3.3",
+    "open3d-cpu",
+    "scikit-learn>=1.8.0",
+    "scipy>=1.17.0",
+    "tensorboard>=2.20.0",
+    "torch>=2.10.0",
+    "torchaudio>=2.10.0",
+    "torchvision>=0.25.0",
+    "tqdm>=4.66.5",
+]
+
+[tool.uv.sources]
+open3d-cpu = { path = "../Open3D/docker/open3d_cpu-0.19.0-cp314-cp314-manylinux_2_35_x86_64.whl" }
+
+
+[[tool.uv.index]]
+name = "python-oneapi"
+url = "https://download.pytorch.org/whl/xpu"

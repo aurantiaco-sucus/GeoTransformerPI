@@ -89,6 +89,7 @@ class KPConv(nn.Module):
             q_feats (Tensor): (M, C_out)
         """
         s_points = torch.cat([s_points, torch.zeros_like(s_points[:1, :]) + self.inf], 0)  # (N, 3) -> (N+1, 3)
+        # print(s_points.shape, q_points.shape, neighbor_indices.shape)
         neighbors = index_select(s_points, neighbor_indices, dim=0)  # (N+1, 3) -> (M, H, 3)
         neighbors = neighbors - q_points.unsqueeze(1)  # (M, H, 3)
 

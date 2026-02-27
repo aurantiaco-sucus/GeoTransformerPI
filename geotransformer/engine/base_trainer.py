@@ -14,7 +14,7 @@ import ipdb
 
 from geotransformer.utils.summary_board import SummaryBoard
 from geotransformer.utils.timer import Timer
-from geotransformer.utils.torch import all_reduce_tensors, release_cuda, initialize
+from geotransformer.utils.torch import all_reduce_tensors, release_cuda, initialize, set_device, get_device
 from geotransformer.engine.logger import Logger
 
 
@@ -26,6 +26,7 @@ def inject_default_parser(parser=None):
     parser.add_argument('--epoch', type=int, default=None, help='load epoch')
     parser.add_argument('--log_steps', type=int, default=10, help='logging steps')
     parser.add_argument('--local_rank', type=int, default=-1, help='local rank for ddp')
+    parser.add_argument('--device', type=str, default=None, help="device to use (e.g. 'cuda', 'cuda:0', 'mps', 'xpu', 'cpu')")
     return parser
 
 
@@ -60,22 +61,41 @@ class BaseTrainer(abc.ABC):
         self.writer = SummaryWriter(log_dir=cfg.event_dir)
         self.logger.info(f'Tensorboard is enabled. Write events to {cfg.event_dir}.')
 
+        # device configuration
+        if self.args.device is not None:
+            set_device(self.args.device)
+        self.device = get_device()
+        self.logger.info(f'Using device: {self.device}')
+
         # cuda and distributed
-        if not torch.cuda.is_available():
-            raise RuntimeError('No CUDA devices available.')
         self.distributed = self.args.local_rank != -1
         if self.distributed:
-            torch.cuda.set_device(self.args.local_rank)
-            dist.init_process_group(backend='nccl')
+            # For DDP we still expect processes to be bound to a GPU-like device when using nccl.
+            # If the selected device is CUDA, set the CUDA device index; otherwise, rely on the
+            # environment and torch.distributed launcher to configure devices appropriately.
+            try:
+                # If device is cuda and a local rank is provided, set the CUDA device.
+                if str(self.device).startswith('cuda'):
+                    torch.cuda.set_device(self.args.local_rank)
+                    backend = 'nccl'
+                else:
+                    # Use default backend for non-CUDA devices; the launcher should set appropriate env.
+                    backend = 'gloo'
+                dist.init_process_group(backend=backend)
+            except Exception as e:
+                # Log and re-raise to avoid silent failures
+                self.logger.error(f'Failed to init process group: {e}')
+                raise
             self.world_size = dist.get_world_size()
             self.local_rank = self.args.local_rank
-            self.logger.info(f'Using DistributedDataParallel mode (world_size: {self.world_size})')
+            self.logger.info(f'Using DistributedDataParallel mode (world_size: {self.world_size}, backend: {dist.get_backend()})')
         else:
-            if torch.cuda.device_count() > 1:
-                self.logger.warning('DataParallel is deprecated. Use DistributedDataParallel instead.')
+            # Single-process mode. Warn if multiple CUDA devices available but user didn't launch DDP.
+            if torch.cuda.device_count() > 1 and str(self.device).startswith('cuda'):
+                self.logger.warning('Multiple CUDA devices detected. Consider using DistributedDataParallel.')
             self.world_size = 1
             self.local_rank = 0
-            self.logger.info('Using Single-GPU mode.')
+            self.logger.info(f'Using single-process mode on device {self.device}.')
         self.cudnn_deterministic = cudnn_deterministic
         self.autograd_anomaly_detection = autograd_anomaly_detection
         self.seed = cfg.seed + self.local_rank
@@ -178,9 +198,16 @@ class BaseTrainer(abc.ABC):
 
     def register_model(self, model):
         r"""Register model. DDP is automatically used."""
+        # Move model to the configured device first.
+        model = model.to(self.device)
         if self.distributed:
-            local_rank = self.local_rank
-            model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank)
+            # If using CUDA devices, pass device ids for proper device placement. For other devices
+            # DistributedDataParallel will handle device placement if processes are launched correctly.
+            if str(self.device).startswith('cuda'):
+                local_rank = self.local_rank
+                model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank)
+            else:
+                model = nn.parallel.DistributedDataParallel(model)
         self.model = model
         message = 'Model description:\n' + str(model)
         self.logger.info(message)

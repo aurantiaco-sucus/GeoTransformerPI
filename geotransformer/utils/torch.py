@@ -1,13 +1,33 @@
 import math
 import random
 from typing import Callable
-from collections import OrderedDict
 
 import numpy as np
 import torch
 import torch.distributed as dist
 import torch.utils.data
 import torch.backends.cudnn as cudnn
+
+# Device management
+# Default device is CUDA if available, else CPU. Users can override via set_device().
+_DEFAULT_DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'xpu' if torch.xpu.is_available() else 'cpu')
+
+
+def set_device(device_name: str):
+    """Set the global device for the project. device_name can be a torch device string
+    like 'cuda', 'cuda:0', 'mps', 'xpu', or 'cpu'. This does NOT change torch.distributed init
+    semantics (backend selection) which is still chosen where relevant.
+    """
+    global _DEFAULT_DEVICE
+    if isinstance(device_name, torch.device):
+        _DEFAULT_DEVICE = device_name
+    else:
+        _DEFAULT_DEVICE = torch.device(device_name)
+
+
+def get_device():
+    """Return current global device as torch.device."""
+    return _DEFAULT_DEVICE
 
 
 # Distributed Data Parallel Utilities
@@ -110,17 +130,26 @@ def release_cuda(x):
     return x
 
 
-def to_cuda(x):
-    r"""Move all tensors to cuda."""
+def to_device(x, device: torch.device = None):
+    r"""Move all tensors to the given device. If device is None, use the global device."""
+    if device is None:
+        device = get_device()
     if isinstance(x, list):
-        x = [to_cuda(item) for item in x]
+        x = [to_device(item, device=device) for item in x]
     elif isinstance(x, tuple):
-        x = (to_cuda(item) for item in x)
+        x = tuple(to_device(item, device=device) for item in x)
     elif isinstance(x, dict):
-        x = {key: to_cuda(value) for key, value in x.items()}
+        x = {key: to_device(value, device=device) for key, value in x.items()}
     elif isinstance(x, torch.Tensor):
-        x = x.cuda()
+        # Use .to(device) so it works for non-CUDA devices (mps, xpu)
+        x = x.to(device)
     return x
+
+
+# Backwards compatible alias
+def to_cuda(x):
+    """Alias for to_device for backwards compatibility. Uses the global device."""
+    return to_device(x, device=None)
 
 
 def load_weights(model, snapshot):

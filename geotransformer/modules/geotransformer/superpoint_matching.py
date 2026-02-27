@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from geotransformer.utils.torch import get_device
 
 from geotransformer.modules.ops import pairwise_distance
 
@@ -25,9 +26,9 @@ class SuperPointMatching(nn.Module):
             corr_scores (Tensor): scores of the correspondences.
         """
         if ref_masks is None:
-            ref_masks = torch.ones(size=(ref_feats.shape[0],), dtype=torch.bool).cuda()
+            ref_masks = torch.ones(size=(ref_feats.shape[0],), dtype=torch.bool).to(get_device())
         if src_masks is None:
-            src_masks = torch.ones(size=(src_feats.shape[0],), dtype=torch.bool).cuda()
+            src_masks = torch.ones(size=(src_feats.shape[0],), dtype=torch.bool).to(get_device())
         # remove empty patch
         ref_indices = torch.nonzero(ref_masks, as_tuple=True)[0]
         src_indices = torch.nonzero(src_masks, as_tuple=True)[0]

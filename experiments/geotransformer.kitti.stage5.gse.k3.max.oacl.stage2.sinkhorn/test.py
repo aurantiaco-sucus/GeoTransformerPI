@@ -6,7 +6,7 @@ import numpy as np
 
 from geotransformer.engine import SingleTester
 from geotransformer.utils.common import ensure_dir, get_log_string
-from geotransformer.utils.torch import release_cuda
+from geotransformer.utils.torch import release_cuda, to_cuda, get_device
 
 from config import make_cfg
 from dataset import test_data_loader
@@ -29,11 +29,11 @@ class Tester(SingleTester):
         self.register_loader(data_loader)
 
         # model
-        model = create_model(cfg).cuda()
+        model = create_model(cfg).to(get_device())
         self.register_model(model)
 
         # evaluator
-        self.evaluator = Evaluator(cfg).cuda()
+        self.evaluator = Evaluator(cfg).to(get_device())
 
         # preparation
         self.output_dir = osp.join(cfg.feature_dir)

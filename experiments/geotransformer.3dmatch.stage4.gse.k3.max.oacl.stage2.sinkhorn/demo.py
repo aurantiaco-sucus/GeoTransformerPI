@@ -4,7 +4,7 @@ import torch
 import numpy as np
 
 from geotransformer.utils.data import registration_collate_fn_stack_mode
-from geotransformer.utils.torch import to_cuda, release_cuda
+from geotransformer.utils.torch import to_device, release_cuda, get_device
 from geotransformer.utils.open3d import make_open3d_point_cloud, get_color, draw_geometries
 from geotransformer.utils.registration import compute_registration_error
 
@@ -55,12 +55,12 @@ def main():
     )
 
     # prepare model
-    model = create_model(cfg).cuda()
+    model = create_model(cfg).to(get_device())
     state_dict = torch.load(args.weights)
     model.load_state_dict(state_dict["model"])
 
     # prediction
-    data_dict = to_cuda(data_dict)
+    data_dict = to_device(data_dict)
     output_dict = model(data_dict)
     data_dict = release_cuda(data_dict)
     output_dict = release_cuda(output_dict)

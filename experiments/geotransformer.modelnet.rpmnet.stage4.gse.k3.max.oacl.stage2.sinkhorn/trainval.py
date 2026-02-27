@@ -9,7 +9,7 @@ import torch.optim as optim
 from IPython import embed
 
 from geotransformer.engine.iter_based_trainer import IterBasedTrainer
-from geotransformer.utils.torch import build_warmup_cosine_lr_scheduler
+from geotransformer.utils.torch import build_warmup_cosine_lr_scheduler, get_device
 
 from config import make_cfg
 from dataset import train_valid_data_loader
@@ -32,7 +32,7 @@ class Trainer(IterBasedTrainer):
         self.register_loader(train_loader, val_loader)
 
         # model, optimizer, scheduler
-        model = create_model(cfg).cuda()
+        model = create_model(cfg).to(get_device())
         model = self.register_model(model)
         optimizer = optim.Adam(model.parameters(), lr=cfg.optim.lr, weight_decay=cfg.optim.weight_decay)
         self.register_optimizer(optimizer)
@@ -47,8 +47,8 @@ class Trainer(IterBasedTrainer):
         self.register_scheduler(scheduler)
 
         # loss function, evaluator
-        self.loss_func = OverallLoss(cfg).cuda()
-        self.evaluator = Evaluator(cfg).cuda()
+        self.loss_func = OverallLoss(cfg).to(get_device())
+        self.evaluator = Evaluator(cfg).to(get_device())
 
     def train_step(self, iteration, data_dict):
         output_dict = self.model(data_dict)

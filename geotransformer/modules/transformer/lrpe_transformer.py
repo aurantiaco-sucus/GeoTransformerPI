@@ -14,6 +14,7 @@ from einops import rearrange
 from geotransformer.modules.layers import build_dropout_layer
 from geotransformer.modules.transformer.output_layer import AttentionOutput
 from geotransformer.modules.transformer.positional_embedding import LearnablePositionalEmbedding
+from geotransformer.utils.torch import get_device
 
 
 class LRPEMultiHeadAttention(nn.Module):
@@ -41,7 +42,7 @@ class LRPEMultiHeadAttention(nn.Module):
         return x
 
     def get_embeddings(self, q, emb_indices):
-        emb_all_indices = torch.arange(self.num_embeddings).cuda()  # (P,)
+        emb_all_indices = torch.arange(self.num_embeddings).to(get_device())  # (P,)
         emb_bank = rearrange(self.embedding(emb_all_indices), 'p (h c) -> h p c', h=self.num_heads)
         attention_scores = torch.einsum('bhnc,hpc->bhnp', q, emb_bank)
         emb_indices = emb_indices.unsqueeze(1).expand(-1, self.num_heads, -1, -1)  # (B, N, M) -> (B, H, N, M)

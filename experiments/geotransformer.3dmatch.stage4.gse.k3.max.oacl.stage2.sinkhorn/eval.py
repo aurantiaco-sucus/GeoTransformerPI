@@ -26,6 +26,7 @@ from geotransformer.datasets.registration.threedmatch.utils import (
 )
 
 from config import make_cfg
+from geotransformer.utils.torch import to_device, get_device
 
 
 def make_parser():
@@ -122,7 +123,7 @@ def eval_one_epoch(args, cfg, logger):
             transform = data_dict['transform']
             pcd_overlap = data_dict['overlap']
 
-            if args.num_corr is not None and corr_scores.shape[0] > engine.args.num_corr:
+            if args.num_corr is not None and corr_scores.shape[0] > args.num_corr:
                 sel_indices = np.argsort(-corr_scores)[: args.num_corr]
                 ref_corr_points = ref_corr_points[sel_indices]
                 src_corr_points = src_corr_points[sel_indices]
@@ -175,9 +176,9 @@ def eval_one_epoch(args, cfg, logger):
                 )
             elif args.method == 'svd':
                 with torch.no_grad():
-                    ref_corr_points = torch.from_numpy(ref_corr_points).cuda()
-                    src_corr_points = torch.from_numpy(src_corr_points).cuda()
-                    corr_scores = torch.from_numpy(corr_scores).cuda()
+                    ref_corr_points = to_device(torch.from_numpy(ref_corr_points))
+                    src_corr_points = to_device(torch.from_numpy(src_corr_points))
+                    corr_scores = to_device(torch.from_numpy(corr_scores))
                     estimated_transform = weighted_procrustes(
                         src_corr_points, ref_corr_points, corr_scores, return_transform=True
                     )
